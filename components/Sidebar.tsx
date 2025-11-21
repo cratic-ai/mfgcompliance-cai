@@ -5,10 +5,11 @@
 import React from 'react';
 import { View } from '../App';
 import CraticLogoIcon from './icons/CraticLogoIcon';
-
-import { Link } from 'react-router-dom';
 import DashboardIcon from './icons/DashboardIcon';
+import { Link } from 'react-router-dom';
+
 import DocumentChatbotIcon from './icons/DocumentChatbotIcon';
+
 import DocumentsControlIcon from './icons/DocumentsControlIcon';
 
 interface SidebarProps {
@@ -54,7 +55,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeSi
 
             <aside className={`w-64 bg-cratic-panel border-r border-cratic-border flex-col flex-shrink-0 fixed md:relative h-full z-30 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:flex`}>
                 <div className="h-16 flex items-center px-4 border-b border-cratic-border flex-shrink-0">
-                   <link href ="" > <CraticLogoIcon /> <link/>
+         <a href="https://mfgcompliance.craticai.com/" target="_blank" rel="noopener noreferrer">
+  <CraticLogoIcon />
+</a>
                     <div className="ml-3">
                         <h1 className="text-base font-bold text-cratic-text-primary">CraticAI</h1>
                         <p className="text-xs text-cratic-text-secondary">AI-Powered Workspace</p>
