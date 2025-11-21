@@ -10,7 +10,7 @@ import { RagStore, Document, QueryResult, CustomMetadata, supportedLanguages, La
  * This should be called before each API request to ensure the most up-to-date API key is used.
  */
 function getAI() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: process.env.REACT_APP_API_KEY });
 }
 
 export interface ApiError {
