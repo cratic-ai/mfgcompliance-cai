@@ -1,5 +1,5 @@
 // services/geminiService.js
-const API_URL = process.env.REACT_APP_API_URL || 'https://chatbot-service-one.vercel.app/api';
+const API_URL ='https://chatbot-service-one.vercel.app/api/gemini';
 //  'http://localhost:3001/api';
 
 const getAuthHeaders = () => {
