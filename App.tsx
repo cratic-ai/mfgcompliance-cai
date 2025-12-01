@@ -10,7 +10,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/dashboard/DashboardView';
 import * as geminiService from './services/geminiService';
-
+import DocumentManager from './components/DocumentManager';
 export type View = 'chat' | 'management' | 'dashboard' | 'placeholder';
 
 export interface AppError {
@@ -97,7 +97,7 @@ const App: React.FC = () => {
             case 'chat':
                 return <ChatbotView handleError={handleError} />;
             case 'management':
-                return <ManagementView key={reloadCounter} handleError={handleError} />;
+                return <DocumentManager key={reloadCounter} handleError={handleError} />;
             case 'dashboard':
                  return <DashboardView />;
             default:
