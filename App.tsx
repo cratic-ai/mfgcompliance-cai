@@ -85,7 +85,7 @@ const App: React.FC = () => {
                                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                                 <Route path="/dashboard" element={<DashboardView />} />
                                 <Route path="/chat" element={<ChatbotView handleError={handleError} />} />
-                                <Route path="/files" element={<ChatbotView handleError={handleError} />} />
+                          <Route path="/files" element={<DocumentManager handleError={handleError} />} />
 
                                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
                             </Routes>
