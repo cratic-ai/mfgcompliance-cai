@@ -1,94 +1,73 @@
-// hooks/useWebSocket.ts
-import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useState, useEffect, useRef } from 'react';
 
-interface DocumentStatusUpdate {
-  documentId: string;
-  status: string;
-  progress?: number;
-  message?: string;
-  error?: string;
-  documentName?: string;
-  timestamp: string;
+interface WebSocketResult {
+  connected: boolean;
+  documentUpdates: any;
+  userUpdates: any;
 }
 
-interface UserDocumentsUpdate {
-  userId: string;
-  type: 'document-ready' | 'document-failed' | 'document-deleted';
-  documentId: string;
-  documentName?: string;
-  error?: string;
-  timestamp: string;
-}
-
-export const useWebSocket = (userId: string | null) => {
+export const useWebSocket = (userId: string): WebSocketResult => {
   const [connected, setConnected] = useState(false);
-  const [documentUpdates, setDocumentUpdates] = useState<DocumentStatusUpdate | null>(null);
-  const [userUpdates, setUserUpdates] = useState<UserDocumentsUpdate | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const [documentUpdates, setDocumentUpdates] = useState<any>(null);
+  const [userUpdates, setUserUpdates] = useState<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    // Don't run on server-side or if WebSocket is not available
+    if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+      console.warn('WebSocket not available in this environment');
+      return;
+    }
 
-    const socket = io(process.env.REACT_APP_WS_URL || 'http://localhost:5000', {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    });
+    // Get WebSocket URL - if not set, skip WebSocket
+    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) {
+      console.warn('WebSocket URL not configured, skipping live updates');
+      return;
+    }
 
-    socket.on('connect', () => {
-      console.log('✅ WebSocket connected');
-      setConnected(true);
-      socket.emit('subscribe-user', userId);
-    });
+    try {
+      const ws = new WebSocket(`${wsUrl}/ws?userId=${userId}`);
+      wsRef.current = ws;
 
-    socket.on('disconnect', () => {
-      console.log('❌ WebSocket disconnected');
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'document-update') {
+            setDocumentUpdates(data);
+          } else if (data.type === 'user-update') {
+            setUserUpdates(data);
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.warn('WebSocket error:', error);
+        setConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setConnected(false);
+      };
+
+      return () => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.close();
+        }
+      };
+    } catch (err) {
+      console.warn('Failed to create WebSocket connection:', err);
       setConnected(false);
-    });
-
-    socket.on('document-status', (data: DocumentStatusUpdate) => {
-      console.log('📡 Document status update:', data);
-      setDocumentUpdates(data);
-    });
-
-    socket.on('user-documents-update', (data: UserDocumentsUpdate) => {
-      console.log('📡 User documents update:', data);
-      setUserUpdates(data);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-    });
-
-    socketRef.current = socket;
-
-    return () => {
-      if (socketRef.current) {
-        socket.emit('unsubscribe-user', userId);
-        socket.close();
-      }
-    };
+    }
   }, [userId]);
 
-  const subscribeToDocument = (documentId: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('subscribe-document', documentId);
-    }
-  };
-
-  const unsubscribeFromDocument = (documentId: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('unsubscribe-document', documentId);
-    }
-  };
-
-  return {
-    connected,
-    documentUpdates,
-    userUpdates,
-    subscribeToDocument,
-    unsubscribeFromDocument,
-  };
+  return { connected, documentUpdates, userUpdates };
 };
