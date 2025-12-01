@@ -104,7 +104,7 @@ const UploadModal: React.FC<{
       // Validate metadata
       const validation = validateDocumentMetadata(metadata);
       if (!validation.valid) {
-        setError(validation.errors.join(', '));
+//         setError(validation.errors.join(', '));
         return;
       }
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import ChatbotView from './components/ChatbotView';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -21,6 +21,33 @@ declare global {
         aistudio?: AIStudio;
     }
 }
+
+// Token Handler Component
+const TokenHandler: React.FC = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const token = searchParams.get('token');
+
+        if (token) {
+            // Store the token
+            localStorage.setItem('compliauthToken', token);
+            console.log('✅ Token received and stored successfully');
+
+            // Clean up URL - remove token from address bar
+            searchParams.delete('token');
+            const cleanSearch = searchParams.toString();
+            const cleanUrl = `${location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}${location.hash}`;
+
+            // Replace the URL without reloading
+            navigate(cleanUrl, { replace: true });
+        }
+    }, [location, navigate]);
+
+    return null; // This component doesn't render anything
+};
 
 const App: React.FC = () => {
     const [error, setError] = useState<AppError | null>(null);
@@ -54,6 +81,7 @@ const App: React.FC = () => {
 
     return (
         <BrowserRouter>
+            <TokenHandler /> {/* Add this line to handle token from URL */}
             <div className="h-screen bg-cratic-background text-cratic-text-primary flex relative overflow-hidden md:overflow-auto">
                 <Sidebar
                     isOpen={isSidebarOpen}
@@ -85,8 +113,7 @@ const App: React.FC = () => {
                                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                                 <Route path="/dashboard" element={<DashboardView />} />
                                 <Route path="/chat" element={<ChatbotView handleError={handleError} />} />
-                          <Route path="/files" element={<DocumentManager handleError={handleError} />} />
-
+                                <Route path="/files" element={<DocumentManager handleError={handleError} />} />
                                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
                             </Routes>
                         )}
