@@ -3,18 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React from 'react';
-import { View } from '../App';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CraticLogoIcon from './icons/CraticLogoIcon';
 import DashboardIcon from './icons/DashboardIcon';
-import { Link } from 'react-router-dom';
-
 import DocumentChatbotIcon from './icons/DocumentChatbotIcon';
-
 import DocumentsControlIcon from './icons/DocumentsControlIcon';
 
 interface SidebarProps {
-    currentView: View;
-    setView: (view: View) => void;
     isOpen: boolean;
     closeSidebar: () => void;
 }
@@ -22,18 +17,24 @@ interface SidebarProps {
 interface SidebarLinkProps {
     icon: React.ReactNode;
     label: string;
-    view: View;
-    currentView: View;
-    setView: (view: View) => void;
+    path: string;
     badge?: number;
 }
 
-const SidebarLink: React.FC<SidebarLinkProps> = ({ icon, label, view, currentView, setView, badge }) => {
-    const isActive = currentView === view;
+const SidebarLink: React.FC<SidebarLinkProps> = ({ icon, label, path, badge }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const isActive = location.pathname === path;
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        navigate(path);
+    };
+
     return (
-        <a
-            href="#"
-            onClick={(e) => { e.preventDefault(); setView(view); }}
+
+            href={path}
+            onClick={handleClick}
             className={`flex items-center px-3 py-2.5 rounded-lg transition-colors text-sm font-medium
                 ${isActive
                     ? 'bg-cratic-purple-active-bg text-cratic-purple'
@@ -47,7 +48,7 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ icon, label, view, currentVie
     );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeSidebar }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
     return (
         <>
             {/* Overlay for mobile */}
@@ -55,9 +56,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeSi
 
             <aside className={`w-64 bg-cratic-panel border-r border-cratic-border flex-col flex-shrink-0 fixed md:relative h-full z-30 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:flex`}>
                 <div className="h-16 flex items-center px-4 border-b border-cratic-border flex-shrink-0">
-         <a href="https://mfgcompliance.craticai.com/" target="_blank" rel="noopener noreferrer">
-  <CraticLogoIcon />
-</a>
+                    <a href="https://mfgcompliance.craticai.com/" target="_blank" rel="noopener noreferrer">
+                        <CraticLogoIcon />
+                    </a>
                     <div className="ml-3">
                         <h1 className="text-base font-bold text-cratic-text-primary">CraticAI</h1>
                         <p className="text-xs text-cratic-text-secondary">AI-Powered Workspace</p>
@@ -66,14 +67,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeSi
                 <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
                     <div>
                         <div className="space-y-1">
-                            <SidebarLink icon={<DashboardIcon />} label="Dashboard" view="dashboard" currentView={currentView} setView={setView} />
+                            <SidebarLink
+                                icon={<DashboardIcon />}
+                                label="Dashboard"
+                                path="/dashboard"
+                            />
                         </div>
                     </div>
-                     <div>
+                    <div>
                         <h2 className="px-3 text-xs font-bold uppercase text-cratic-purple-text tracking-wider mb-2">SOP Assistant</h2>
                         <div className="space-y-1">
-                            <SidebarLink icon={<DocumentChatbotIcon />} label="Document Chatbot" view="chat" currentView={currentView} setView={setView} />
-                            <SidebarLink icon={<DocumentsControlIcon />} label="Documents Control" view="management" currentView={currentView} setView={setView} />
+                            <SidebarLink
+                                icon={<DocumentChatbotIcon />}
+                                label="Document Chatbot"
+                                path="/chat"
+                            />
+                            <SidebarLink
+                                icon={<DocumentsControlIcon />}
+                                label="Documents Control"
+                                path="/files"
+                            />
                         </div>
                     </div>
                 </nav>
