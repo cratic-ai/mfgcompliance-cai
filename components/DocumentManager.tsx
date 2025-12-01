@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useWebSocket } from '../hooks/websocket';
 import {
@@ -23,10 +25,10 @@ import {
   uploadDocument,
   checkHealth,
   getApiErrorDetails,
-} from   '../services/api.services';
+} from '../services/api.services';
 import { RagStore, CustomMetadata } from '../types';
 
-// Icons
+// Icons (same as before)
 const SearchIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -64,14 +66,20 @@ const ChartIcon = () => (
   </svg>
 );
 
-// Upload Modal Component
+const CheckIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+// Upload Modal Component with Store Confirmation
 const UploadModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  stores: RagStore[];
-  onUpload: (storeName: string, file: File, metadata: CustomMetadata[]) => Promise<void>;
-}> = ({ isOpen, onClose, stores, onUpload }) => {
-  const [selectedStore, setSelectedStore] = useState('');
+  userId: string;
+  userStore: RagStore | null;
+  onUpload: (file: File, metadata: CustomMetadata[]) => Promise<void>;
+}> = ({ isOpen, onClose, userId, userStore, onUpload }) => {
   const [file, setFile] = useState<File | null>(null);
   const [version, setVersion] = useState('1.0.0');
   const [notes, setNotes] = useState('');
@@ -82,7 +90,7 @@ const UploadModal: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStore || !file) return;
+    if (!file || !userStore) return;
 
     setUploading(true);
     setError('');
@@ -91,6 +99,7 @@ const UploadModal: React.FC<{
       const metadata: CustomMetadata[] = [
         { key: 'version', stringValue: version },
         { key: 'notes', stringValue: notes || 'No notes provided' },
+        { key: 'uploadedBy', stringValue: userId },
       ];
 
       if (category) {
@@ -104,11 +113,11 @@ const UploadModal: React.FC<{
       // Validate metadata
       const validation = validateDocumentMetadata(metadata);
       if (!validation.valid) {
-//         setError(validation.errors.join(', '));
+        setError(validation.errors.join(', '));
         return;
       }
 
-      await onUpload(selectedStore, file, metadata);
+      await onUpload(file, metadata);
 
       // Reset form
       setFile(null);
@@ -149,25 +158,30 @@ const UploadModal: React.FC<{
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Store Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              RAG Store <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              disabled={uploading}
-            >
-              <option value="">Select a store...</option>
-              {stores.map((store) => (
-                <option key={store.name} value={store.name}>
-                  {store.displayName}
-                </option>
-              ))}
-            </select>
+          {/* Storage Location Info - User can see but not change */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-1">Upload Location</h3>
+                <p className="text-sm text-blue-800 mb-2">
+                  Your document will be uploaded to your personal storage:
+                </p>
+                <div className="bg-white rounded-lg px-3 py-2 border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{userStore?.displayName || 'Loading...'}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{userStore?.name || ''}</p>
+                    </div>
+                    <CheckIcon />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* File Selection */}
@@ -286,7 +300,7 @@ const UploadModal: React.FC<{
             <button
               type="submit"
               className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-              disabled={uploading || !selectedStore || !file}
+              disabled={uploading || !file || !userStore}
             >
               {uploading ? (
                 <>
@@ -306,18 +320,20 @@ const UploadModal: React.FC<{
     </div>
   );
 };
+
 interface DocumentManagerProps {
+  userId: string; // REQUIRED: Pass from auth context
   handleError?: (message: string, err: any) => void;
 }
 
-const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
-// Main Document Manager Component
-
+const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }) => {
   // State Management
   const [documents, setDocuments] = useState<ManagedDocument[]>([]);
   const [stores, setStores] = useState<RagStore[]>([]);
+  const [userStore, setUserStore] = useState<RagStore | null>(null);
   const [stats, setStats] = useState<DocumentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializingStore, setInitializingStore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -335,27 +351,81 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
   });
 
   // WebSocket integration
-  const userId = 'user-id'; // Replace with actual user ID from auth context
   const { connected, documentUpdates, userUpdates } = useWebSocket(userId);
+
+  // Get user's store name (format: ragStores/{userId})
+  const getUserStoreName = () => `ragStores/${userId}`;
+
+  // Check if user store exists, create if not
+  const ensureUserStore = async () => {
+    try {
+      setInitializingStore(true);
+      const allStores = await listRagStores();
+      const userStoreName = getUserStoreName();
+
+      // Check if user's store exists
+      let store = allStores.find(s => s.name === userStoreName);
+
+      if (!store) {
+        // Store doesn't exist - create it
+        console.log(`Creating personal store for user: ${userId}`);
+
+        // Create with user-friendly display name
+        const newStoreName = await createRagStore(`${userId}'s Documents`);
+
+        // Fetch updated store list to get the created store
+        const updatedStores = await listRagStores();
+        store = updatedStores.find(s => s.name === userStoreName);
+
+        if (!store) {
+          // Fallback: construct store object
+          store = {
+            name: userStoreName,
+            displayName: `${userId}'s Documents`
+          };
+        }
+
+        console.log(`✅ Store created successfully: ${store.displayName}`);
+      } else {
+        console.log(`✅ Store already exists: ${store.displayName}`);
+      }
+
+      setUserStore(store);
+      return store;
+    } catch (err) {
+      console.error('Failed to ensure user store:', err);
+      throw new Error('Failed to initialize your document storage. Please try again.');
+    } finally {
+      setInitializingStore(false);
+    }
+  };
 
   // Load initial data
   useEffect(() => {
     loadInitialData();
     checkSystemHealth();
-  }, []);
+  }, [userId]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Step 1: Ensure user has a store (check and create if needed)
+      const store = await ensureUserStore();
+
+      // Step 2: Load documents and stats
       const [docs, docStats, storesList] = await Promise.all([
         getAllManagedDocuments(),
         getDocumentStats(),
         listRagStores(),
       ]);
 
-      setDocuments(docs);
+      // Filter to show only user's documents
+      const userStoreName = getUserStoreName();
+      const userDocs = docs.filter(doc => doc.storeName === userStoreName);
+
+      setDocuments(userDocs);
       setStats(docStats);
       setStores(storesList);
     } catch (err) {
@@ -379,7 +449,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
   // WebSocket update handlers
   useEffect(() => {
     if (documentUpdates) {
-      // Refresh document list when updates come through
       loadInitialData();
     }
   }, [documentUpdates]);
@@ -422,9 +491,14 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
   };
 
   // Document Operations
-  const handleUpload = async (storeName: string, file: File, metadata: CustomMetadata[]) => {
+  const handleUpload = async (file: File, metadata: CustomMetadata[]) => {
     try {
-      await uploadDocument(storeName, file, metadata);
+      if (!userStore) {
+        throw new Error('User store not initialized');
+      }
+
+      // Upload to user's personal store
+      await uploadDocument(userStore.name, file, metadata);
       await loadInitialData();
     } catch (err) {
       const errorDetails = getApiErrorDetails(err);
@@ -477,7 +551,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
 
   const handleExportCSV = () => {
     const csv = exportDocumentsAsCSV(filteredDocuments);
-    downloadCSV(csv, `documents-${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV(csv, `documents-${userId}-${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   // Filter Handlers
@@ -496,15 +570,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     });
   };
 
-  const toggleStoreFilter = (storeName: string) => {
-    const stores = filter.storeNames || [];
-    updateFilter({
-      storeNames: stores.includes(storeName)
-        ? stores.filter((s) => s !== storeName)
-        : [...stores, storeName],
-    });
-  };
-
   const toggleVersionFilter = (version: string) => {
     const versions = filter.versions || [];
     updateFilter({
@@ -514,21 +579,17 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     });
   };
 
-  // Stats calculations
-  const documentStats = {
-    total: documents.length,
-    ready: documents.length, // All managed documents are ready
-    processing: 0, // Would need queue integration for this
-    failed: 0, // Would need queue integration for this
-  };
-
   // Render Loading State
   if (loading && documents.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
         <div className="text-center">
           <RefreshIcon spinning />
-          <p className="mt-4 text-gray-600">Loading documents...</p>
+          <p className="mt-4 text-gray-600">
+            {initializingStore
+              ? `Setting up your personal storage for ${userId}...`
+              : 'Loading documents...'}
+          </p>
         </div>
       </div>
     );
@@ -542,10 +603,10 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-violet-800 bg-clip-text text-transparent">
-                Document Manager
+                My Documents
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Manage and organize your documents across all RAG stores
+                {userStore?.displayName || `Personal library for ${userId}`}
                 <span className="ml-2 inline-flex items-center gap-1.5">
                   <span
                     className={`w-2 h-2 rounded-full ${
@@ -560,7 +621,9 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             </div>
             <button
               onClick={() => setUploadModalOpen(true)}
-              className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+              disabled={!userStore}
+              className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!userStore ? 'Initializing storage...' : 'Upload document'}
             >
               <UploadIcon />
               <span>Upload Document</span>
@@ -570,6 +633,29 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Storage Info Banner */}
+        {userStore && (
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 mb-6 text-white shadow-lg">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-1">Your Personal Storage</h3>
+                <p className="text-blue-100 text-sm mb-3">
+                  All your documents are stored securely in: <strong>{userStore.displayName}</strong>
+                </p>
+                <div className="flex items-center gap-2 text-xs text-blue-100">
+                  <CheckIcon />
+                  <span>Storage ID: {userStore.name}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
@@ -592,7 +678,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Documents</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalDocuments || 0}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{documents.length}</p>
               </div>
               <div className="w-12 h-12 bg-violet-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -605,14 +691,14 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Stores</p>
+                <p className="text-sm font-medium text-gray-600">Categories</p>
                 <p className="text-3xl font-bold text-green-600 mt-2">
-                  {Object.keys(stats?.documentsByStore || {}).length}
+                  {new Set(documents.map(d => d.category).filter(Boolean)).size}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
               </div>
             </div>
@@ -623,7 +709,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               <div>
                 <p className="text-sm font-medium text-gray-600">Storage Used</p>
                 <p className="text-3xl font-bold text-yellow-600 mt-2">
-                  {formatFileSize(stats?.storageUsed)}
+                  {formatFileSize(documents.reduce((sum, doc) => sum + (doc.fileSize || 0), 0))}
                 </p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -646,37 +732,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             </div>
           </div>
         </div>
-
-        {/* System Health Banner */}
-        {healthStatus && (
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 mb-8 text-white shadow-lg">
-            <h3 className="text-lg font-semibold mb-4">System Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-blue-100">Status</p>
-                <p className="text-2xl font-bold mt-1">{healthStatus.status}</p>
-              </div>
-              <div>
-                <p className="text-sm text-blue-100">Database</p>
-                <p className="text-2xl font-bold mt-1">
-                  {healthStatus.features?.database ? '✓' : '✗'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-blue-100">WebSocket</p>
-                <p className="text-2xl font-bold mt-1">
-                  {healthStatus.features?.websocket ? '✓' : '✗'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-blue-100">Queue</p>
-                <p className="text-2xl font-bold mt-1">
-                  {healthStatus.features?.queue ? '✓' : '✗'}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Toolbar */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-6">
@@ -709,14 +764,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               </button>
 
               <button
-                onClick={() => setShowStats(!showStats)}
-                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <ChartIcon />
-                <span>Stats</span>
-              </button>
-
-              <button
                 onClick={handleExportCSV}
                 className="px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
@@ -738,26 +785,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
 
           {/* Filters */}
           <div className="flex flex-wrap gap-4">
-            {/* Store Filter */}
-            {filterOptions.stores.length > 0 && (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-sm font-medium text-gray-700">Stores:</span>
-                {filterOptions.stores.slice(0, 5).map((store) => (
-                  <button
-                    key={store.name}
-                    onClick={() => toggleStoreFilter(store.name)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter.storeNames?.includes(store.name)
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {store.displayName} ({store.count})
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Version Filter */}
             {filterOptions.versions.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center">
@@ -779,10 +806,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             )}
 
             {/* Clear Filters */}
-            {(filter.searchTerm ||
-              filter.storeNames?.length ||
-              filter.versions?.length ||
-              filter.tags?.length) && (
+            {(filter.searchTerm || filter.versions?.length || filter.tags?.length) && (
               <button
                 onClick={clearFilters}
                 className="px-3 py-1 text-sm text-red-600 hover:text-red-800 underline transition-colors"
@@ -803,7 +827,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               <option value="date">Date</option>
               <option value="name">Name</option>
               <option value="version">Version</option>
-              <option value="store">Store</option>
             </select>
 
             <button
@@ -818,66 +841,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             </button>
           </div>
         </div>
-
-        {/* Statistics Panel */}
-        {showStats && stats && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-6">
-            <h2 className="text-xl font-bold mb-4">Statistics</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Documents by Store */}
-              <div>
-                <h3 className="font-semibold mb-3">Documents by Store</h3>
-                <div className="space-y-2">
-                  {Object.entries(stats.documentsByStore).map(([store, count]) => (
-                    <div key={store} className="flex justify-between items-center">
-                      <span className="text-gray-700">{store}</span>
-                      <span className="font-semibold px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Documents by Version */}
-              <div>
-                <h3 className="font-semibold mb-3">Documents by Version</h3>
-                <div className="space-y-2">
-                  {Object.entries(stats.documentsByVersion)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 10)
-                    .map(([version, count]) => (
-                      <div key={version} className="flex justify-between items-center">
-                        <span className="text-gray-700">v{version}</span>
-                        <span className="font-semibold px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                          {count}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Uploads */}
-            {stats.recentUploads.length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-semibold mb-3">Recent Uploads</h3>
-                <div className="space-y-2">
-                  {stats.recentUploads.slice(0, 5).map((doc) => (
-                    <div
-                      key={doc.name}
-                      className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <span className="text-gray-700 font-medium">{doc.displayName}</span>
-                      <span className="text-gray-500">{formatDate(doc.lastModified)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Documents Table */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -900,9 +863,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
                     Document
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Store
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Version
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -922,7 +882,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredDocuments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={7} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <svg
@@ -943,15 +903,19 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
                           No documents found
                         </h3>
                         <p className="text-gray-600 mb-4">
-                          Try adjusting your filters or upload a new document
+                          {userStore
+                            ? 'Start by uploading your first document'
+                            : 'Setting up your storage...'}
                         </p>
-                        <button
-                          onClick={() => setUploadModalOpen(true)}
-                          className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium transition-all inline-flex items-center gap-2"
-                        >
-                          <UploadIcon />
-                          <span>Upload Document</span>
-                        </button>
+                        {userStore && (
+                          <button
+                            onClick={() => setUploadModalOpen(true)}
+                            className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium transition-all inline-flex items-center gap-2"
+                          >
+                            <UploadIcon />
+                            <span>Upload Document</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1009,9 +973,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {doc.storeDisplayName}
-                        </td>
                         <td className="px-4 py-3 text-sm">
                           <div className="flex items-center gap-2">
                             <span
@@ -1064,11 +1025,12 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
         </div>
       </div>
 
-      {/* Upload Modal */}
+      {/* Upload Modal with Store Confirmation */}
       <UploadModal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
-        stores={stores}
+        userId={userId}
+        userStore={userStore}
         onUpload={handleUpload}
       />
     </div>

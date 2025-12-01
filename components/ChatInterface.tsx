@@ -4,7 +4,7 @@
 */
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, LanguageCode, supportedLanguages, languageFlags } from '../types';
-import * as geminiService from '../services/geminiService';
+import * as geminiService from '../services/api.services';
 import Spinner from './Spinner';
 import SendIcon from './icons/SendIcon';
 import RefreshIcon from './icons/RefreshIcon';
