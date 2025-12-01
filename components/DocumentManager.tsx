@@ -1082,8 +1082,7 @@
 
 
 
-eact, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useWebSocket } from '../hooks/websocket';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   getAllManagedDocuments,
   getDocumentStats,
@@ -1102,12 +1101,11 @@ import {
 } from '../services/documentManagementService';
 import {
   listRagStores,
-  createRagStore,
   deleteDocument,
   uploadDocument,
   checkHealth,
   getApiErrorDetails,
-} from   '../services/api.services';
+} from '../services/api.services';
 import { RagStore, CustomMetadata } from '../types';
 
 // Icons
@@ -1185,7 +1183,6 @@ const UploadModal: React.FC<{
         metadata.push({ key: 'tags', stringValue: tags });
       }
 
-      // Validate metadata
       const validation = validateDocumentMetadata(metadata);
       if (!validation.valid) {
         setError(validation.errors.join(', '));
@@ -1194,7 +1191,6 @@ const UploadModal: React.FC<{
 
       await onUpload(selectedStore, file, metadata);
 
-      // Reset form
       setFile(null);
       setVersion('1.0.0');
       setNotes('');
@@ -1233,7 +1229,6 @@ const UploadModal: React.FC<{
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Store Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               RAG Store <span className="text-red-500">*</span>
@@ -1254,7 +1249,6 @@ const UploadModal: React.FC<{
             </select>
           </div>
 
-          {/* File Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               File <span className="text-red-500">*</span>
@@ -1292,7 +1286,6 @@ const UploadModal: React.FC<{
             </div>
           </div>
 
-          {/* Version */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Version <span className="text-red-500">*</span>
@@ -1311,7 +1304,6 @@ const UploadModal: React.FC<{
             <p className="text-xs text-gray-500 mt-1">Format: X.Y.Z (e.g., 2.1.0)</p>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Notes
@@ -1326,7 +1318,6 @@ const UploadModal: React.FC<{
             />
           </div>
 
-          {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Category
@@ -1341,7 +1332,6 @@ const UploadModal: React.FC<{
             />
           </div>
 
-          {/* Tags */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tags
@@ -1357,7 +1347,6 @@ const UploadModal: React.FC<{
             <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -1390,14 +1379,12 @@ const UploadModal: React.FC<{
     </div>
   );
 };
+
 interface DocumentManagerProps {
   handleError?: (message: string, err: any) => void;
 }
 
 const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
-// Main Document Manager Component
-
-  // State Management
   const [documents, setDocuments] = useState<ManagedDocument[]>([]);
   const [stores, setStores] = useState<RagStore[]>([]);
   const [stats, setStats] = useState<DocumentStats | null>(null);
@@ -1408,7 +1395,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
   const [showStats, setShowStats] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
 
-  // Filter State
   const [filter, setFilter] = useState<DocumentFilter>({
     searchTerm: '',
     storeNames: [],
@@ -1418,11 +1404,8 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     sortOrder: 'desc',
   });
 
-  // WebSocket integration
-  const userId = 'user-id'; // Replace with actual user ID from auth context
-  const { connected, documentUpdates, userUpdates } = useWebSocket(userId);
+  const connected = false;
 
-  // Load initial data
   useEffect(() => {
     loadInitialData();
     checkSystemHealth();
@@ -1460,33 +1443,14 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     }
   };
 
-  // WebSocket update handlers
-  useEffect(() => {
-    if (documentUpdates) {
-      // Refresh document list when updates come through
-      loadInitialData();
-    }
-  }, [documentUpdates]);
-
-  useEffect(() => {
-    if (userUpdates) {
-      if (userUpdates.type === 'document-ready' || userUpdates.type === 'document-deleted') {
-        loadInitialData();
-      }
-    }
-  }, [userUpdates]);
-
-  // Filtered Documents
   const filteredDocuments = useMemo(() => {
     return filterDocuments(documents, filter);
   }, [documents, filter]);
 
-  // Filter Options
   const filterOptions = useMemo(() => {
     return getFilterOptions(documents);
   }, [documents]);
 
-  // Selection Handlers
   const toggleSelectAll = () => {
     if (selectedDocs.size === filteredDocuments.length) {
       setSelectedDocs(new Set());
@@ -1505,7 +1469,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     setSelectedDocs(newSelected);
   };
 
-  // Document Operations
   const handleUpload = async (storeName: string, file: File, metadata: CustomMetadata[]) => {
     try {
       await uploadDocument(storeName, file, metadata);
@@ -1564,7 +1527,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     downloadCSV(csv, `documents-${new Date().toISOString().split('T')[0]}.csv`);
   };
 
-  // Filter Handlers
   const updateFilter = (updates: Partial<DocumentFilter>) => {
     setFilter((prev) => ({ ...prev, ...updates }));
   };
@@ -1598,15 +1560,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
     });
   };
 
-  // Stats calculations
-  const documentStats = {
-    total: documents.length,
-    ready: documents.length, // All managed documents are ready
-    processing: 0, // Would need queue integration for this
-    failed: 0, // Would need queue integration for this
-  };
-
-  // Render Loading State
   if (loading && documents.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
@@ -1620,7 +1573,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-violet-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
@@ -1631,13 +1583,9 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               <p className="text-sm text-gray-600 mt-1">
                 Manage and organize your documents across all RAG stores
                 <span className="ml-2 inline-flex items-center gap-1.5">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      connected ? 'bg-green-500' : 'bg-gray-400'
-                    }`}
-                  />
+                  <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span className="text-xs">
-                    {connected ? 'Live updates active' : 'Connecting...'}
+                    {connected ? 'Live updates active' : 'Offline'}
                   </span>
                 </span>
               </p>
@@ -1654,7 +1602,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Message */}
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
             <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1670,7 +1617,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         )}
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between">
@@ -1731,7 +1677,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         </div>
 
-        {/* System Health Banner */}
         {healthStatus && (
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 mb-8 text-white shadow-lg">
             <h3 className="text-lg font-semibold mb-4">System Status</h3>
@@ -1762,10 +1707,8 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         )}
 
-        {/* Toolbar */}
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-6">
           <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
-            {/* Search */}
             <div className="flex-1 min-w-[200px] max-w-md">
               <div className="relative">
                 <input
@@ -1781,7 +1724,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={loadInitialData}
@@ -1820,9 +1762,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap gap-4">
-            {/* Store Filter */}
             {filterOptions.stores.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm font-medium text-gray-700">Stores:</span>
@@ -1842,7 +1782,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               </div>
             )}
 
-            {/* Version Filter */}
             {filterOptions.versions.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm font-medium text-gray-700">Versions:</span>
@@ -1862,7 +1801,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               </div>
             )}
 
-            {/* Clear Filters */}
             {(filter.searchTerm ||
               filter.storeNames?.length ||
               filter.versions?.length ||
@@ -1876,7 +1814,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
             )}
           </div>
 
-          {/* Sort */}
           <div className="mt-4 flex gap-4 items-center">
             <span className="text-sm font-medium text-gray-700">Sort by:</span>
             <select
@@ -1903,13 +1840,11 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         </div>
 
-        {/* Statistics Panel */}
         {showStats && stats && (
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-6">
             <h2 className="text-xl font-bold mb-4">Statistics</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Documents by Store */}
               <div>
                 <h3 className="font-semibold mb-3">Documents by Store</h3>
                 <div className="space-y-2">
@@ -1924,7 +1859,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
                 </div>
               </div>
 
-              {/* Documents by Version */}
               <div>
                 <h3 className="font-semibold mb-3">Documents by Version</h3>
                 <div className="space-y-2">
@@ -1943,7 +1877,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
               </div>
             </div>
 
-            {/* Recent Uploads */}
             {stats.recentUploads.length > 0 && (
               <div className="mt-6">
                 <h3 className="font-semibold mb-3">Recent Uploads</h3>
@@ -1963,7 +1896,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         )}
 
-        {/* Documents Table */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -2142,13 +2074,11 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
           </div>
         </div>
 
-        {/* Results Count */}
         <div className="mt-4 text-sm text-gray-600 text-center">
           Showing {filteredDocuments.length} of {documents.length} documents
         </div>
       </div>
 
-      {/* Upload Modal */}
       <UploadModal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
