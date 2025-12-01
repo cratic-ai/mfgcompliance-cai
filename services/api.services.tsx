@@ -19,7 +19,7 @@ export const apiClient = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('mfgcompliauthToken') || sessionStorage.getItem('mfgcompliauthToken');
+        const token = localStorage.getItem('compliauthToken') || sessionStorage.getItem('compliauthToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,9 +36,10 @@ apiClient.interceptors.response.use(
             // Handle unauthorized - redirect to login or refresh token
             console.error('Unauthorized access - please login again');
             // Optional: Clear tokens and redirect
-            localStorage.removeItem('mfgcompliauthToken');
-            sessionStorage.removeItem('mfgcompliauthToken');
-            window.location.href = '/login';
+            localStorage.removeItem('compliauthToken');
+            sessionStorage.removeItem('compliauthToken');
+
+//        window.location.href = '/login';
         }
         return Promise.reject(error);
     }
