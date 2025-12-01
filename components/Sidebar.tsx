@@ -26,49 +26,37 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ icon, label, path, badge }) =
     const location = useLocation();
     const isActive = location.pathname === path;
 
-    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        e.preventDefault();
+    const handleClick = () => {
         navigate(path);
     };
 
-    return (
+    const activeClass = isActive
+        ? 'bg-cratic-purple-active-bg text-cratic-purple'
+        : 'text-cratic-text-primary hover:bg-cratic-subtle';
 
-            href={path}
+    const iconClass = isActive ? 'text-cratic-purple' : 'text-cratic-text-secondary';
+
+    return (
+        <button
+            type="button"
             onClick={handleClick}
-            className={`flex items-center px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${
-                isActive
-                    ? 'bg-cratic-purple-active-bg text-cratic-purple'
-                    : 'text-cratic-text-primary hover:bg-cratic-subtle'
-            }`}
+            className={`flex items-center px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left ${activeClass}`}
         >
-            <span className={isActive ? 'text-cratic-purple' : 'text-cratic-text-secondary'}>
-                {icon}
-            </span>
+            <span className={iconClass}>{icon}</span>
             <span className="ml-3 flex-1">{label}</span>
-            {badge && (
-                <span className="bg-cratic-purple text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                    {badge}
-                </span>
-            )}
-        </a>
+            {badge && <span className="bg-cratic-purple text-white text-xs font-semibold px-2 py-0.5 rounded-full">{badge}</span>}
+        </button>
     );
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
+    const sidebarClass = `w-64 bg-cratic-panel border-r border-cratic-border flex-col flex-shrink-0 fixed md:relative h-full z-30 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:flex`;
+
     return (
         <>
-            {/* Overlay for mobile */}
-            {isOpen && (
-                <div
-                    onClick={closeSidebar}
-                    className="fixed inset-0 bg-black/50 z-20 md:hidden"
-                    aria-hidden="true"
-                />
-            )}
+            {isOpen && <div onClick={closeSidebar} className="fixed inset-0 bg-black/50 z-20 md:hidden" aria-hidden="true"></div>}
 
-            <aside className={`w-64 bg-cratic-panel border-r border-cratic-border flex-col flex-shrink-0 fixed md:relative h-full z-30 transform transition-transform duration-300 ease-in-out ${
-                isOpen ? 'translate-x-0' : '-translate-x-full'
-            } md:translate-x-0 md:flex`}>
+            <aside className={sidebarClass}>
                 <div className="h-16 flex items-center px-4 border-b border-cratic-border flex-shrink-0">
                     <a href="https://mfgcompliance.craticai.com/" target="_blank" rel="noopener noreferrer">
                         <CraticLogoIcon />
@@ -81,28 +69,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
                 <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
                     <div>
                         <div className="space-y-1">
-                            <SidebarLink
-                                icon={<DashboardIcon />}
-                                label="Dashboard"
-                                path="/dashboard"
-                            />
+                            <SidebarLink icon={<DashboardIcon />} label="Dashboard" path="/dashboard" />
                         </div>
                     </div>
                     <div>
-                        <h2 className="px-3 text-xs font-bold uppercase text-cratic-purple-text tracking-wider mb-2">
-                            SOP Assistant
-                        </h2>
+                        <h2 className="px-3 text-xs font-bold uppercase text-cratic-purple-text tracking-wider mb-2">SOP Assistant</h2>
                         <div className="space-y-1">
-                            <SidebarLink
-                                icon={<DocumentChatbotIcon />}
-                                label="Document Chatbot"
-                                path="/chat"
-                            />
-                            <SidebarLink
-                                icon={<DocumentsControlIcon />}
-                                label="Documents Control"
-                                path="/files"
-                            />
+                            <SidebarLink icon={<DocumentChatbotIcon />} label="Document Chatbot" path="/chat" />
+                            <SidebarLink icon={<DocumentsControlIcon />} label="Documents Control" path="/files" />
                         </div>
                     </div>
                 </nav>
