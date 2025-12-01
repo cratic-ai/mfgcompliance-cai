@@ -306,9 +306,13 @@ const UploadModal: React.FC<{
     </div>
   );
 };
+interface DocumentManagerProps {
+  handleError?: (message: string, err: any) => void;
+}
 
+const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
 // Main Document Manager Component
-const DocumentManager: React.FC = () => {
+
   // State Management
   const [documents, setDocuments] = useState<ManagedDocument[]>([]);
   const [stores, setStores] = useState<RagStore[]>([]);
