@@ -27,6 +27,10 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [reloadCounter, setReloadCounter] = useState(0);
 
+    const handleTryAgain = () => {
+        setError(null);
+    };
+
     const handleError = (message: string, err: any) => {
         console.error(message, err);
         const apiErrorDetails = geminiService.getApiErrorDetails(err);
@@ -46,10 +50,6 @@ const App: React.FC = () => {
         } else {
             alert("API Key selection utility is not available.");
         }
-    };
-
-    const handleTryAgain = () => {
-        setError(null);
     };
 
     return (
@@ -82,11 +82,11 @@ const App: React.FC = () => {
                             </div>
                         ) : (
                             <Routes>
-                                <Route path="/" element={<DashboardView />} />
+                                <Route path="/" element={<Navigate to="/dashboard" replace />} />
                                 <Route path="/dashboard" element={<DashboardView />} />
                                 <Route path="/chat" element={<ChatbotView handleError={handleError} />} />
-                                <Route path="/files" element={<DocumentManager key={reloadCounter} handleError={handleError} />} />
-                                <Route path="/management" element={<DocumentManager key={reloadCounter} handleError={handleError} />} />
+                                <Route path="/files" element={<DocumentManager handleError={handleError} />} />
+
                                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
                             </Routes>
                         )}
