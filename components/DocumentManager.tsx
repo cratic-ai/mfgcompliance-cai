@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-// import { useWebSocket } from '../hooks/websocket';
+import { useWebSocket } from '../hooks/websocket';
 import {
   getAllManagedDocuments,
   getDocumentStats,
@@ -335,11 +335,9 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ handleError }) => {
   });
 
   // WebSocket integration
-//   const userId = 'user-id'; // Replace with actual user ID from auth context
-//   const { connected, documentUpdates, userUpdates } = useWebSocket(userId);
+  const userId = 'user-id'; // Replace with actual user ID from auth context
+  const { connected, documentUpdates, userUpdates } = useWebSocket(userId);
 
-
-const connected = false;
   // Load initial data
   useEffect(() => {
     loadInitialData();
