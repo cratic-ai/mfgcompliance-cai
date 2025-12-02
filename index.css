@@ -1,0 +1,46 @@
+/*
+ * Embedded Mode Styles for mfgcompliancecat
+ * Add this to your main CSS file (e.g., index.css or App.css)
+ */
+
+/* Hide sidebar when embedded in iframe */
+body.embedded-mode aside,
+body.embedded-mode .sidebar,
+body.embedded-mode [data-sidebar] {
+  display: none !important;
+}
+
+/* Make main content full width when embedded */
+body.embedded-mode main,
+body.embedded-mode .main-content {
+  width: 100% !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Remove any side padding that assumes sidebar exists */
+body.embedded-mode {
+  margin: 0;
+  padding: 0;
+}
+
+/* Adjust flex containers for embedded mode */
+body.embedded-mode .flex-1 {
+  width: 100% !important;
+}
+
+/* Optional: Adjust header when embedded */
+body.embedded-mode header {
+  padding-left: 1rem !important;
+}
+
+/* Ensure content is visible and not cut off */
+body.embedded-mode .overflow-hidden {
+  overflow: visible !important;
+}
+
+/* Make sure content scrolls properly in iframe */
+body.embedded-mode {
+  overflow-y: auto !important;
+  height: 100vh !important;
+}

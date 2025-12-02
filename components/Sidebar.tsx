@@ -11,7 +11,8 @@ import DocumentsControlIcon from './icons/DocumentsControlIcon';
 
 interface SidebarProps {
     isOpen: boolean;
-    closeSidebar: () => void;
+
+    closeSidebar: () => {isOpen: False};
 }
 
 interface SidebarLinkProps {
@@ -54,9 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
 
     return (
         <>
-            {isOpen && <div onClick={closeSidebar} className="fixed inset-0 bg-black/50 z-20 md:hidden" aria-hidden="true"></div>}
-
-            <aside className={sidebarClass}>
+                        {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-25 z-20 md:hidden"
+                    onClick={closeSidebar}
+                    aria-hidden="true"
+                ></div>
+            )}
+        <aside className={sidebarClass}>
                 <div className="h-16 flex items-center px-4 border-b border-cratic-border flex-shrink-0">
                     <a href="https://mfgcompliance.craticai.com/" target="_blank" rel="noopener noreferrer">
                         <CraticLogoIcon />
@@ -80,7 +86,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
                         </div>
                     </div>
                 </nav>
-            </aside>
+             </aside>
+
+
+
+
+
         </>
     );
 };

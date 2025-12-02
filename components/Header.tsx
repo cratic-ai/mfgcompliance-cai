@@ -19,12 +19,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
     return (
         <header className="flex-shrink-0 bg-cratic-panel border-b border-cratic-border h-16 flex items-center justify-between px-4 sm:px-6">
             <div className="flex items-center space-x-2">
-                <button onClick={toggleSidebar} className="p-2 rounded-full hover:bg-cratic-subtle text-cratic-text-secondary md:hidden" aria-label="Open sidebar">
-                    <MenuIcon />
-                </button>
-                <button className="p-2 rounded-full hover:bg-cratic-subtle text-cratic-text-secondary hidden sm:block">
-                    <ChevronLeftIcon />
-                </button>
+
+
             </div>
             <div className="flex-1 max-w-lg mx-4">
                 <div className="relative">
