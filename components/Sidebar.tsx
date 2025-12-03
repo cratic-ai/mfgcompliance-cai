@@ -81,8 +81,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
                     <div>
                         <h2 className="px-3 text-xs font-bold uppercase text-cratic-purple-text tracking-wider mb-2">SOP Assistant</h2>
                         <div className="space-y-1">
-                            <SidebarLink icon={<DocumentChatbotIcon />} label="Document Chatbot" path="/chat" />
-                            <SidebarLink icon={<DocumentsControlIcon />} label="Documents Control" path="/files" />
+                            <SidebarLink icon={<DocumentChatbotIcon />} label="AI Chatbot" path="/chat" />
+                            <SidebarLink icon={<DocumentsControlIcon />} label="AI Document Control" path="/files" />
                         </div>
                     </div>
                 </nav>
