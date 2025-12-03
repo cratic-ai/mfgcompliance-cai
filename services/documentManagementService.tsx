@@ -1,7 +1,7 @@
 // services/documentManagementService.ts
 import axios, { AxiosError } from 'axios';
 import { DocumentWithStore, RagStore, CustomMetadata } from '../types';
-import { apiClient, getApiErrorDetails } from  './api.services';
+import { apiClient, getApiErrorDetails } from './api.services';
 
 // ============================================
 // Document Management Types
@@ -74,8 +74,7 @@ export async function getAllManagedDocuments(): Promise<ManagedDocument[]> {
  */
 export async function getDocumentsByStore(storeName: string): Promise<ManagedDocument[]> {
     try {
-        const encodedStoreName = encodeURIComponent(storeName);
-        const response = await apiClient.get(`/gemini/stores/${encodedStoreName}/documents`);
+        const response = await apiClient.get(`/gemini/stores/${storeName}/documents`);
         const documents: DocumentWithStore[] = response.data.documents || [];
 
         return documents.map(doc => enrichDocumentMetadata(doc));
@@ -322,8 +321,7 @@ export async function bulkDeleteDocuments(documentNames: string[]): Promise<Bulk
 
     for (const docName of documentNames) {
         try {
-            const encodedDocName = encodeURIComponent(docName);
-            await apiClient.delete(`/gemini/documents/${encodedDocName}`);
+            await apiClient.delete(`/gemini/documents/${docName}`);
             result.success.push(docName);
         } catch (error) {
             const errorDetails = getApiErrorDetails(error);
@@ -351,14 +349,6 @@ export async function moveDocumentsToStore(
 
     for (const docName of documentNames) {
         try {
-            // Get original document
-            const doc = await getDocumentByName(docName);
-            if (!doc) {
-                throw new Error('Document not found');
-            }
-
-            // Note: This would require downloading and re-uploading
-            // Since Gemini API doesn't support direct move operations
             result.failed.push({
                 name: docName,
                 error: 'Move operation not supported by API',

@@ -1,9 +1,8 @@
-
-
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useWebSocket } from '../hooks/websocket';
 import {
   getAllManagedDocuments,
+  getDocumentsByStore,
   getDocumentStats,
   filterDocuments,
   getFilterOptions,
@@ -28,7 +27,7 @@ import {
 } from '../services/api.services';
 import { RagStore, CustomMetadata } from '../types';
 
-// Icons (same as before)
+// Icons
 const SearchIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -72,7 +71,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-// Upload Modal Component with Store Confirmation
+// Upload Modal Component
 const UploadModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -158,7 +157,7 @@ const UploadModal: React.FC<{
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Storage Location Info - User can see but not change */}
+          {/* Storage Location Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -322,7 +321,7 @@ const UploadModal: React.FC<{
 };
 
 interface DocumentManagerProps {
-  userId: string; // REQUIRED: Pass from auth context
+  userId: string;
   handleError?: (message: string, err: any) => void;
 }
 
@@ -337,8 +336,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
   const [error, setError] = useState<string | null>(null);
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
 
   // Filter State
   const [filter, setFilter] = useState<DocumentFilter>({
@@ -353,48 +350,44 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
   // WebSocket integration
   const { connected, documentUpdates, userUpdates } = useWebSocket(userId);
 
-  // Get user's store name (format: ragStores/{userId})
-  const getUserStoreName = () => `ragStores/${userId}`;
+  // Get user's store name (format: fileSearchStores/{userId})
+  const getUserStoreName = () => `fileSearchStores/${userId}`;
 
   // Check if user store exists, create if not
   const ensureUserStore = async () => {
     try {
       setInitializingStore(true);
       const allStores = await listRagStores();
-      const userStoreName = getUserStoreName();
+      const expectedStoreName = getUserStoreName();
 
       // Check if user's store exists
-      let store = allStores.find(s => s.name === userStoreName);
+      let store = allStores.find(s => s.name === expectedStoreName);
 
       if (!store) {
         // Store doesn't exist - create it
         console.log(`Creating personal store for user: ${userId}`);
 
-        // Create with user-friendly display name
-        const newStoreName = await createRagStore(`${userId}'s Documents`);
+        const createResult = await createRagStore(`${userId}'s Documents`);
 
-        // Fetch updated store list to get the created store
-        const updatedStores = await listRagStores();
-        store = updatedStores.find(s => s.name === userStoreName);
+        console.log('Create result:', createResult);
 
-        if (!store) {
-          // Fallback: construct store object
-          store = {
-            name: userStoreName,
-            displayName: `${userId}'s Documents`
-          };
-        }
+        // The API returns the full store object
+        store = {
+          name: createResult.name,
+          displayName: createResult.displayName
+        };
 
-        console.log(`✅ Store created successfully: ${store.displayName}`);
+        console.log(`✅ Store created: ${store.name}`);
       } else {
-        console.log(`✅ Store already exists: ${store.displayName}`);
+        console.log(`✅ Store exists: ${store.displayName}`);
       }
 
       setUserStore(store);
       return store;
     } catch (err) {
       console.error('Failed to ensure user store:', err);
-      throw new Error('Failed to initialize your document storage. Please try again.');
+      const errorDetails = getApiErrorDetails(err);
+      throw new Error(errorDetails?.message || 'Failed to initialize storage');
     } finally {
       setInitializingStore(false);
     }
@@ -403,7 +396,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
   // Load initial data
   useEffect(() => {
     loadInitialData();
-    checkSystemHealth();
   }, [userId]);
 
   const loadInitialData = async () => {
@@ -411,38 +403,29 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
       setLoading(true);
       setError(null);
 
-      // Step 1: Ensure user has a store (check and create if needed)
+      // Step 1: Ensure user has a store
       const store = await ensureUserStore();
 
-      // Step 2: Load documents and stats
-      const [docs, docStats, storesList] = await Promise.all([
-        getAllManagedDocuments(),
+      if (!store) {
+        throw new Error('Failed to initialize storage');
+      }
+
+      // Step 2: Load documents for this specific store
+      const [userDocs, docStats, storesList] = await Promise.all([
+        getDocumentsByStore(store.name),
         getDocumentStats(),
         listRagStores(),
       ]);
-
-      // Filter to show only user's documents
-      const userStoreName = getUserStoreName();
-      const userDocs = docs.filter(doc => doc.storeName === userStoreName);
 
       setDocuments(userDocs);
       setStats(docStats);
       setStores(storesList);
     } catch (err) {
       const errorDetails = getApiErrorDetails(err);
-      setError(errorDetails?.message || 'Failed to load documents. Please try again.');
-      console.error(err);
+      setError(errorDetails?.message || 'Failed to load documents');
+      console.error('Load error:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const checkSystemHealth = async () => {
-    try {
-      const health = await checkHealth();
-      setHealthStatus(health);
-    } catch (err) {
-      console.error('Health check failed:', err);
     }
   };
 
@@ -587,7 +570,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
           <RefreshIcon spinning />
           <p className="mt-4 text-gray-600">
             {initializingStore
-              ? `Setting up your personal storage for ${userId}...`
+              ? `Setting up your personal storage...`
               : 'Loading documents...'}
           </p>
         </div>
@@ -1025,7 +1008,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
         </div>
       </div>
 
-      {/* Upload Modal with Store Confirmation */}
+      {/* Upload Modal */}
       <UploadModal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
@@ -1036,6 +1019,5 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ userId, handleError }
     </div>
   );
 };
-
 
 export default DocumentManager;

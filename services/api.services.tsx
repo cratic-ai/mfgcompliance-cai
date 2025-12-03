@@ -28,8 +28,6 @@ apiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-
-
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
     (response) => response,
@@ -40,8 +38,7 @@ apiClient.interceptors.response.use(
             // Optional: Clear tokens and redirect
             localStorage.removeItem('compliauthToken');
             sessionStorage.removeItem('compliauthToken');
-
-//        window.location.href = '/login';
+            // window.location.href = '/login';
         }
         return Promise.reject(error);
     }
@@ -61,10 +58,13 @@ export async function listRagStores(): Promise<RagStore[]> {
     }
 }
 
-export async function createRagStore(displayName: string): Promise<string> {
+export async function createRagStore(displayName: string): Promise<{ name: string; displayName: string }> {
     try {
         const response = await apiClient.post('/gemini/stores', { displayName });
-        return response.data.name;
+        return {
+            name: response.data.name,
+            displayName: response.data.displayName
+        };
     } catch (error) {
         console.error('Error creating RAG store:', error);
         throw error;
@@ -73,17 +73,26 @@ export async function createRagStore(displayName: string): Promise<string> {
 
 export async function deleteRagStore(storeName: string): Promise<void> {
     try {
-        // Encode the storeName to handle special characters
-        const encodedStoreName = encodeURIComponent(storeName);
-        await apiClient.delete(`/gemini/stores/${encodedStoreName}`);
+        // storeName should already be in format: fileSearchStores/xxx
+        await apiClient.delete(`/gemini/stores/${storeName}`);
     } catch (error) {
         console.error('Error deleting RAG store:', error);
         throw error;
     }
 }
 
+export async function getStoreDetails(storeName: string): Promise<RagStore> {
+    try {
+        const response = await apiClient.get(`/gemini/stores/${storeName}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error getting store details:', error);
+        throw error;
+    }
+}
+
 // ============================================
-// Document Management
+// Document Management (Updated for REST API)
 // ============================================
 
 export async function listAllDocuments(): Promise<DocumentWithStore[]> {
@@ -98,8 +107,7 @@ export async function listAllDocuments(): Promise<DocumentWithStore[]> {
 
 export async function listDocumentsInStore(storeName: string): Promise<DocumentWithStore[]> {
     try {
-        const encodedStoreName = encodeURIComponent(storeName);
-        const response = await apiClient.get(`/gemini/stores/${encodedStoreName}/documents`);
+        const response = await apiClient.get(`/gemini/stores/${storeName}/documents`);
         return response.data.documents || [];
     } catch (error) {
         console.error('Error listing documents in store:', error);
@@ -109,9 +117,7 @@ export async function listDocumentsInStore(storeName: string): Promise<DocumentW
 
 export async function deleteDocument(documentName: string): Promise<void> {
     try {
-        // Encode the entire document path
-        const encodedDocName = encodeURIComponent(documentName);
-        await apiClient.delete(`/gemini/documents/${encodedDocName}`);
+        await apiClient.delete(`/gemini/documents/${documentName}`);
     } catch (error) {
         console.error('Error deleting document:', error);
         throw error;
@@ -119,26 +125,27 @@ export async function deleteDocument(documentName: string): Promise<void> {
 }
 
 // ============================================
-// File Upload Operations
+// File Upload Operations (Updated for REST API)
 // ============================================
 
 export async function uploadToRagStore(
     storeName: string,
-    file: File
-): Promise<{ message: string; operationId: string; status: string }> {
+    file: File,
+    onUploadProgress?: (progressEvent: any) => void
+): Promise<{ message: string; operation: any }> {
     try {
         const formData = new FormData();
         formData.append('file', file);
 
-        const encodedStoreName = encodeURIComponent(storeName);
         const response = await apiClient.post(
-            `/gemini/stores/${encodedStoreName}/upload`,
+            `/gemini/stores/${storeName}/upload`,
             formData,
             {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
                 timeout: 600000, // 10 minutes for uploads
+                onUploadProgress,
             }
         );
 
@@ -152,8 +159,9 @@ export async function uploadToRagStore(
 export async function uploadDocument(
     storeName: string,
     file: File,
-    metadata?: CustomMetadata[]
-): Promise<{ message: string; operationId: string; status: string }> {
+    metadata?: CustomMetadata[],
+    onUploadProgress?: (progressEvent: any) => void
+): Promise<{ message: string; operation: any }> {
     try {
         const formData = new FormData();
         formData.append('file', file);
@@ -162,15 +170,15 @@ export async function uploadDocument(
             formData.append('metadata', JSON.stringify(metadata));
         }
 
-        const encodedStoreName = encodeURIComponent(storeName);
         const response = await apiClient.post(
-            `/gemini/stores/${encodedStoreName}/upload-with-metadata`,
+            `/gemini/stores/${storeName}/upload`,
             formData,
             {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
                 timeout: 600000, // 10 minutes for uploads
+                onUploadProgress,
             }
         );
 
@@ -182,14 +190,70 @@ export async function uploadDocument(
 }
 
 // ============================================
-// AI Operations
+// Operation Status Checking (NEW)
+// ============================================
+
+export async function checkOperationStatus(operationName: string): Promise<{
+    name: string;
+    done: boolean;
+    metadata?: any;
+    error?: any;
+    response?: any;
+}> {
+    try {
+        const response = await apiClient.get(`/gemini/operations/${operationName}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error checking operation status:', error);
+        throw error;
+    }
+}
+
+// Helper function to poll operation until complete
+export async function pollOperationUntilComplete(
+    operationName: string,
+    maxAttempts: number = 20,
+    intervalMs: number = 3000
+): Promise<any> {
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+        try {
+            const operation = await checkOperationStatus(operationName);
+
+            if (operation.done) {
+                if (operation.error) {
+                    throw new Error(`Operation failed: ${JSON.stringify(operation.error)}`);
+                }
+                return operation.response;
+            }
+
+            // Wait before next poll
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            attempts++;
+
+        } catch (error) {
+            console.error('Error polling operation:', error);
+            throw error;
+        }
+    }
+
+    throw new Error('Operation timed out - max polling attempts reached');
+}
+
+// ============================================
+// AI Operations (Updated for REST API)
 // ============================================
 
 export async function fileSearch(
     ragStoreName: string,
     query: string,
     language?: string
-): Promise<{ text: string; groundingChunks: GroundingChunk[] }> {
+): Promise<{
+    text: string;
+    groundingChunks: GroundingChunk[];
+    groundingSupport?: any[];
+}> {
     try {
         const response = await apiClient.post('/gemini/search', {
             ragStoreName,
@@ -200,6 +264,7 @@ export async function fileSearch(
         return {
             text: response.data.text || '',
             groundingChunks: response.data.groundingChunks || [],
+            groundingSupport: response.data.groundingSupport || [],
         };
     } catch (error) {
         console.error('Error performing file search:', error);
@@ -248,7 +313,7 @@ export interface ApiErrorDetails {
     details?: any;
 }
 
-export function getApiErrorDetails(error: any): ApiErrorDetails | null {
+export function getApiErrorDetails(error: any): ApiErrorDetails {
     if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<any>;
 
@@ -273,10 +338,16 @@ export function getApiErrorDetails(error: any): ApiErrorDetails | null {
         }
     }
 
-    return null;
+    // Generic error
+    return {
+        message: error?.message || 'An unknown error occurred',
+        details: error,
+    };
 }
 
-
+// ============================================
+// Health Check
+// ============================================
 
 export async function checkHealth(): Promise<{
     status: string;
@@ -298,24 +369,24 @@ export async function checkHealth(): Promise<{
 }
 
 // ============================================
-// Authentication Helper (if needed)
+// Authentication Helper
 // ============================================
 
 export function setAuthToken(token: string, remember: boolean = false) {
     if (remember) {
-        localStorage.setItem('authToken', token);
+        localStorage.setItem('compliauthToken', token);
     } else {
-        sessionStorage.setItem('authToken', token);
+        sessionStorage.setItem('compliauthToken', token);
     }
 }
 
 export function clearAuthToken() {
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('authToken');
+    localStorage.removeItem('compliauthToken');
+    sessionStorage.removeItem('compliauthToken');
 }
 
 export function getAuthToken(): string | null {
-    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    return localStorage.getItem('compliauthToken') || sessionStorage.getItem('compliauthToken');
 }
 
 // ============================================
@@ -327,6 +398,7 @@ export default {
     listRagStores,
     createRagStore,
     deleteRagStore,
+    getStoreDetails,
 
     // Document Management
     listAllDocuments,
@@ -336,6 +408,10 @@ export default {
     // File Upload
     uploadToRagStore,
     uploadDocument,
+
+    // Operations
+    checkOperationStatus,
+    pollOperationUntilComplete,
 
     // AI Operations
     fileSearch,
@@ -351,5 +427,6 @@ export default {
     clearAuthToken,
     getAuthToken,
 
-     apiClient,
+    // Export axios client
+    apiClient,
 };
